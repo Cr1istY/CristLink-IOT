@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  kafka:
+    image: apache/kafka:latest
+    container_name: crist-link-kafka
+    ports:
+      - "9092:9092"
+      - "9093:9093"
+    environment:
+      # --- 核心修正：直接使用原生配置名，去掉 KAFKA_CFG_ 前缀 ---
+
+      # 节点ID
+      - NODE_ID=1
+
+      # 角色：broker 和 controller
+      - PROCESS_ROLES=broker,controller
+
+      # 控制器投票地址
+      - CONTROLLER_QUORUM_VOTERS=1@kafka:9093
+
+      # 监听器配置
+      - LISTENERS=PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      - ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092
+      - LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - CONTROLLER_LISTENER_NAMES=CONTROLLER
+
+      # 集群ID (保持不变)
+      - CLUSTER_ID=Mk3OEYBSD34fcwNTJENDM2Qk
+
+      # 自动创建主题
+      - AUTO_CREATE_TOPICS_ENABLE=true
+
+      # 数据存储路径
+      - LOG_DIRS=/var/lib/kafka/data
+
+      # 单节点副本优化
+      - OFFSETS_TOPIC_REPLICATION_FACTOR=1
+      - TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
+      - TRANSACTION_STATE_LOG_MIN_ISR=1
+
+      # 内存优化
+      - KAFKA_HEAP_OPTS=-Xmx512M -Xms512M
+
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+
+volumes:
+  kafka_data:
