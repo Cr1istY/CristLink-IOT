@@ -16,9 +16,10 @@ type Producer struct {
 // NewProducer 初始化生产者
 func NewProducer(addr, topic string) *Producer {
 	w := &kafka.Writer{
-		Addr:     kafka.TCP(addr),
-		Topic:    topic,
-		Balancer: &kafka.LeastBytes{}, // 简单的负载均衡策略
+		Addr:                   kafka.TCP(addr),
+		Topic:                  topic,
+		Balancer:               &kafka.LeastBytes{}, // 简单的负载均衡策略
+		AllowAutoTopicCreation: true,                // 允许自动创建主题
 	}
 	return &Producer{writer: w, topic: topic}
 }
@@ -31,6 +32,8 @@ func (p *Producer) Send(ctx context.Context, key, value []byte) error {
 		Key:   key,
 		Value: value,
 	}
+	log.Println(key)
+	log.Println(value)
 	// MVP 阶段使用 WriteMessages，生产环境建议异步批量写入以优化性能
 	if err := p.writer.WriteMessages(ctx, msg); err != nil {
 		log.Printf("Kafka write error: %v", err)

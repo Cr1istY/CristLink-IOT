@@ -56,15 +56,19 @@ func (gs *GatewayServer) OnTraffic(c gnet.Conn) (action gnet.Action) {
 
 	// 3. 构造投递消息 (添加设备ID信息)
 	type Message struct {
-		DeviceID string          `json:"device_id"`
-		Data     json.RawMessage `json:"data"`
+		DeviceID string `json:"device_id"`
+		Data     string `json:"data"`
 	}
 	msg := Message{
 		DeviceID: packet.DeviceID,
-		Data:     packet.Payload,
+		Data:     string(packet.Payload),
 	}
 
-	msgBytes, _ := json.Marshal(msg)
+	msgBytes, err := json.Marshal(msg)
+	if err != nil {
+		log.Printf("JSON Marshal error: %v", err)
+		return // 或者处理错误
+	}
 
 	// 4. 异步投递到 Kafka (注意：生产环境应使用 Channel 缓冲，避免阻塞 IO 协程)
 	// 这里为了 MVP 简单直接调用，实际建议使用 goroutine 或 channel
