@@ -3,6 +3,7 @@ package sink
 import (
 	"context"
 	"log"
+	"time"
 
 	"github.com/segmentio/kafka-go"
 )
@@ -32,14 +33,15 @@ func (p *Producer) Send(ctx context.Context, key, value []byte) error {
 		Key:   key,
 		Value: value,
 	}
-	log.Println(key)
-	log.Println(value)
-	// MVP 阶段使用 WriteMessages，生产环境建议异步批量写入以优化性能
-	if err := p.writer.WriteMessages(ctx, msg); err != nil {
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	if err := p.writer.WriteMessages(ctxWithTimeout, msg); err != nil {
+		// 生产环境建议使用 zap 等高性能日志库，并增加错误分类处理
+		// 例如：如果是 "queue full"，可以稍后重试；如果是 "topic not exist"，则报警
 		log.Printf("Kafka write error: %v", err)
 		return err
 	}
-	log.Println("kafka write success")
 	return nil
 }
 

@@ -80,3 +80,47 @@ func (gs *GatewayServer) OnTraffic(c gnet.Conn) (action gnet.Action) {
 
 	return gnet.None
 }
+
+func (gs *GatewayServer) OnMessage(c gnet.Conn, msg []byte) (out []byte, action gnet.Action) {
+	// 1. 获取设备对应的协议类型
+	// 这一步通常通过 Session 或 设备配置中心 获取
+	// 假设我们通过 Topic 或端口区分，这里硬编码演示
+	protocolType := "json" // 或者 "modbus"
+
+	// 2. 获取对应的解析器
+	codec, err := protocol.GetCodec(protocolType)
+	if err != nil {
+		log.Printf("获取解析器失败: %v", err)
+		return nil, gnet.Close
+	}
+
+	// 3. 准备元数据 (辅助信息)
+	meta := map[string]string{
+		"product_key": "pk_123",
+		"device_id":   "dev_001",
+		"source_ip":   c.RemoteAddr().String(),
+	}
+
+	// 4. 执行解码
+	payload, err := codec.Decode(msg, meta)
+	if err != nil {
+		log.Printf("协议解码失败: %v", err)
+		return nil, gnet.Close
+	}
+
+	// 5. 此时 payload 已经是标准的 StandardPayload 了
+	// 接下来推送到 Kafka
+	go func() {
+		key := []byte(payload.DeviceKey)
+		valueBytes, err := json.Marshal(payload)
+		if err != nil {
+			log.Printf("Kafka 消息序列化失败: %v", err)
+			return
+		}
+		if err := gs.kafkaProducer.Send(gs.ctx, key, valueBytes); err != nil {
+			log.Printf("Failed to send to kafka: %v", err)
+		}
+	}()
+
+	return nil, gnet.None
+}
