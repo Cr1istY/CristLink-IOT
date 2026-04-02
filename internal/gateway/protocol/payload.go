@@ -12,7 +12,7 @@ type StandardPayload struct {
 	// 2. 消息元数据 (Metadata)
 	MsgID     string `json:"msgid"` // 消息唯一ID，用于防重放攻击与链路追踪
 	Timestamp int64  `json:"ts"`    // 时间戳 (毫秒)，建议统一为UTC
-	Seq       int64  `json:"seq"`   // 序列号，用于消息排序
+	Seq       int64  `json:"seq"`   // 序列号，用于消息排序 越大优先级越高
 
 	// 3. 通信指令 (Method)
 	// 类似 HTTP Method，区分云端下发指令与设备上报
@@ -31,6 +31,18 @@ type StandardPayload struct {
 	// 如果是边缘网关上报，此处标记原始协议
 	SrcProtocol string `json:"proto,omitempty"` // "coap", "modbus", "opcua"
 	GatewayID   string `json:"gid,omitempty"`   // 边缘网关ID (如果是直连设备为空)
+}
+
+type Meta struct {
+	SourceIp   string `json:"source_ip"`  // 源IP
+	LocalAddr  string `json:"local_addr"` // 本地端口
+	ProductKey string `json:"pk"`         // 产品Key，用于快速索引物模型 (对应文档三元组)
+	DeviceKey  string `json:"dk"`         // 设备Key (原device_id)，唯一标识
+	MsgID      string `json:"msgid"`      // 消息唯一ID，用于防重放攻击与链路追踪
+	Timestamp  int64  `json:"ts"`         // 时间戳 (毫秒)，建议统一为UTC
+	Seq        int64  `json:"seq"`        // 序列号，用于消息排序
+
+	Topic string `json:"topic"` // MQTT Topic
 }
 
 // --- 辅助常量与方法 ---

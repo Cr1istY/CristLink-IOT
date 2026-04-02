@@ -8,7 +8,7 @@ type Codec interface {
 	// Decode 将原始字节流解析为标准载荷
 	// src: 原始数据 (如 Modbus Hex, MQTT Payload)
 	// meta: 元数据 (如 SourceIP, Topic, DeviceID)，辅助解析
-	Decode(src []byte, meta map[string]string) (*StandardPayload, error)
+	Decode(src []byte, meta Meta) (*StandardPayload, error)
 
 	// Encode 将标准载荷封装为设备可识别的字节流
 	// payload: 标准业务数据
@@ -16,6 +16,12 @@ type Codec interface {
 }
 
 // 错误定义
+
+// 通用
+const (
+	ErrMissingProductKeyOrDeviceKey = "missing productKey or deviceKey"
+)
+
 // 用于MQTT
 const (
 	ErrMissingTopicInMetadata = "missing topic in metadata"

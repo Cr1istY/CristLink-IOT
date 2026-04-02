@@ -18,14 +18,14 @@ type MQTTCodec struct {
 // 注意：在 gnet 中，如果使用了 MQTT 的 Frame Codec，
 // msg 参数通常就是 MQTT 的 Payload (即数据体部分)
 // meta 参数中通常包含 Topic 信息
-func (c *MQTTCodec) Decode(src []byte, meta map[string]string) (*StandardPayload, error) {
+func (c *MQTTCodec) Decode(src []byte, meta Meta) (*StandardPayload, error) {
 	// 1. 从元数据中提取 Topic
-	topic, ok := meta["topic"]
-	if !ok {
-		return nil, errors.New(ErrMissingTopicInMetadata)
-	}
+	topic := meta.Topic
 	// 2. 解析 Topic，
 	// Topic 通常包含路由信息（如 /sys/{pk}/{dk}/up）
+	if topic == "" {
+		return nil, errors.New(ErrMissingTopicInMetadata)
+	}
 
 	pk, dk, err := parseTopic(topic)
 	if err != nil {

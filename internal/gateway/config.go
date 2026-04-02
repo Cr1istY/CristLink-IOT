@@ -15,3 +15,13 @@ func GetConfig() *Config {
 		KafkaAddr:  "localhost:9092", // 生产环境请读取环境变量
 	}
 }
+
+// ServerConfig 定义了一个网关服务实例的配置
+type ServerConfig struct {
+	// Port 监听端口
+	Port int
+	// ProtocolType 协议类型标识，用于选择解析器
+	ProtocolType string
+	// Name 服务名称 (可选)
+	Name string
+}
