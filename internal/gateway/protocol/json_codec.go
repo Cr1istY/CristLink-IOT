@@ -27,15 +27,13 @@ func (c *JSONCodec) Decode(src []byte, meta Meta) (*StandardPayload, error) {
 	}
 
 	_ = json.Unmarshal(src, &rawInput)
-	if len(rawInput.Data) > 0 {
-		// 情况 A：设备发了标准的 {"data": {...}}
-		// 此时，理应解析 ProductKey 和 DeviceKey
-		if rawInput.ProductKey == "" || rawInput.DeviceKey == "" {
-			return nil, errors.New(ErrMissingProductKeyOrDeviceKey)
-		}
-		meta.ProductKey = rawInput.ProductKey
-		meta.DeviceKey = rawInput.DeviceKey
+	// 情况 A：设备发了标准的 {"data": {...}}
+	// 此时，理应解析 ProductKey 和 DeviceKey
+	if rawInput.ProductKey == "" || rawInput.DeviceKey == "" {
+		return nil, errors.New(ErrMissingProductKeyOrDeviceKey)
 	}
+	meta.ProductKey = rawInput.ProductKey
+	meta.DeviceKey = rawInput.DeviceKey
 
 	payload := NewStandardPayload(meta.ProductKey, meta.DeviceKey)
 	if len(rawInput.Data) > 0 {
