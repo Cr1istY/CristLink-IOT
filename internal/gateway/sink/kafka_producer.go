@@ -33,6 +33,7 @@ func (p *Producer) Send(ctx context.Context, key, value []byte) error {
 		Key:   key,
 		Value: value,
 	}
+	// 超时控制
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 

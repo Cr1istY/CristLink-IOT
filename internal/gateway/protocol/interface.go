@@ -14,3 +14,11 @@ type Codec interface {
 	// payload: 标准业务数据
 	Encode(payload *StandardPayload) ([]byte, error)
 }
+
+// 错误定义
+// 用于MQTT
+const (
+	ErrMissingTopicInMetadata = "missing topic in metadata"
+	ErrTopicTooShort          = "topic too short"
+	ErrInvalidTopicPrefix     = "invalid topic prefix"
+)
