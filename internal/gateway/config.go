@@ -1,19 +1,10 @@
 package gateway
 
-// Config 定义网关配置
-type Config struct {
+// KafkaConfig 定义网关配置
+type KafkaConfig struct {
 	Port       int    `json:"port"`        // 监听端口
 	KafkaTopic string `json:"kafka_topic"` // 目标 Kafka Topic
 	KafkaAddr  string `json:"kafka_addr"`  // Kafka 地址
-}
-
-// GetConfig 返回默认配置 (MVP 阶段直接写死或简单读取 env)
-func GetConfig() *Config {
-	return &Config{
-		Port:       9000,
-		KafkaTopic: "iot_data_raw",
-		KafkaAddr:  "localhost:9092", // 生产环境请读取环境变量
-	}
 }
 
 // ServerConfig 定义了一个网关服务实例的配置
@@ -24,4 +15,32 @@ type ServerConfig struct {
 	ProtocolType string
 	// Name 服务名称 (可选)
 	Name string
+}
+
+type MqttBrokerConfig struct {
+	Addr     string `json:"addr"`      // MQTT Broker 地址
+	ClientID string `json:"client_id"` // 客户端ID - 唯一
+	UserName string `json:"username"`  // 用户名
+	Password string `json:"password"`  // 密码
+}
+
+// TODO: 从 env 文件获取
+
+// GetKafkaConfig 返回 Kafka 默认配置
+func GetKafkaConfig() *KafkaConfig {
+	return &KafkaConfig{
+		Port:       9000,
+		KafkaTopic: "iot_data_raw",
+		KafkaAddr:  "localhost:9092", // 生产环境请读取环境变量
+	}
+}
+
+// GetMqttBrokerConfig 返回 MQTT 默认配置
+func GetMqttBrokerConfig() *MqttBrokerConfig {
+	return &MqttBrokerConfig{
+		Addr:     "tcp://localhost:1883",
+		ClientID: "gateway",
+		UserName: "",
+		Password: "",
+	}
 }
