@@ -3,12 +3,13 @@ package network
 import (
 	"CristLink-IoT/internal/gateway/protocol"
 	"CristLink-IoT/internal/gateway/sink"
+	"CristLink-IoT/internal/logger"
 	"context"
 	"encoding/json"
-	"log"
 
 	"github.com/matoous/go-nanoid/v2"
 	"github.com/panjf2000/gnet/v2"
+	"go.uber.org/zap"
 )
 
 // GatewayServer 网关服务结构
@@ -31,13 +32,14 @@ func (gs *GatewayServer) OnOpen(c gnet.Conn) (out []byte, action gnet.Action) {
 	}
 	meta.MsgID, _ = gonanoid.New(16)
 	c.SetContext(meta)
-
+	logger.Logger.Info("New connection", zap.String("remoteAddr", remoteAddr), zap.String("type", gs.protocolType))
 	// 可以在这里做简单的握手鉴权，MVP 暂略
 	return nil, gnet.None
 }
 
 // OnClose 连接断开时触发
 func (gs *GatewayServer) OnClose(c gnet.Conn, err error) (action gnet.Action) {
+	logger.Logger.Info("Connection closed", zap.String("remoteAddr", c.RemoteAddr().String()), zap.String("type", gs.protocolType))
 	return gnet.None
 }
 
@@ -63,14 +65,14 @@ func (gs *GatewayServer) OnTraffic(c gnet.Conn) (action gnet.Action) {
 	// 获取对应的解析器
 	codec, err := protocol.GetCodec(gs.protocolType)
 	if err != nil {
-		log.Printf("获取解析器失败: %v", err)
+		logger.Error("获取解析器失败", "error", err)
 		return gnet.Close
 	}
 
 	// 执行解码
 	payload, err := codec.Decode(data, meta)
 	if err != nil {
-		log.Printf("协议解码失败: %v", err)
+		logger.Error("协议解码失败", "error", err)
 		return gnet.Close
 	}
 
@@ -80,11 +82,11 @@ func (gs *GatewayServer) OnTraffic(c gnet.Conn) (action gnet.Action) {
 		key := []byte(payload.DeviceKey)
 		valueBytes, err := json.Marshal(payload)
 		if err != nil {
-			log.Printf("Kafka 消息序列化失败: %v", err)
+			logger.Error("Kafka 消息序列化失败", "error", err)
 			return
 		}
 		if err := gs.kafkaProducer.Send(gs.ctx, key, valueBytes); err != nil {
-			log.Printf("Failed to send to kafka: %v", err)
+			logger.Error("Failed to send to kafka", "error", err)
 		}
 	}()
 
