@@ -2,6 +2,7 @@ package logger
 
 import (
 	"errors"
+	"log"
 	"os"
 
 	"go.uber.org/zap"
@@ -57,13 +58,15 @@ func Sugar() *zap.SugaredLogger {
 
 func Info(msg string, keysAndValues ...interface{}) {
 	if sugar == nil {
-		return // 或者 panic，或者 fallback 到 std
+		log.Printf("[WARN] Logger not initialized. Msg: %s, KVs: %v", msg, keysAndValues)
+		return
 	}
 	sugar.Infow(msg, keysAndValues...)
 }
 
 func Error(msg string, keysAndValues ...interface{}) {
 	if sugar == nil {
+		log.Printf("[WARN] Logger not initialized. Msg: %s, KVs: %v", msg, keysAndValues)
 		return
 	}
 	sugar.Errorw(msg, keysAndValues...)
@@ -71,7 +74,16 @@ func Error(msg string, keysAndValues ...interface{}) {
 
 func Debug(msg string, keysAndValues ...interface{}) {
 	if sugar == nil {
-		return // Debug 日志如果不重要，可以直接忽略
+		log.Printf("[WARN] Logger not initialized. Msg: %s, KVs: %v", msg, keysAndValues)
+		return
 	}
 	sugar.Debugw(msg, keysAndValues...)
+}
+
+func Warn(msg string, keysAndValues ...interface{}) {
+	if sugar == nil {
+		log.Printf("[WARN] Logger not initialized. Msg: %s, KVs: %v", msg, keysAndValues)
+		return
+	}
+	sugar.Warnw(msg, keysAndValues...)
 }
