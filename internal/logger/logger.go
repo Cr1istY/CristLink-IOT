@@ -20,9 +20,9 @@ func InitLogger() (err error) {
 
 	// TODO: 动态读取 env 文件
 	config := zap.Config{
-		Level:       zap.NewAtomicLevelAt(zap.InfoLevel), // 日志级别
-		Development: false,                               // 是否是开发模式
-		Encoding:    "console",                           // 输出格式：json 或 console
+		Level:       zap.NewAtomicLevelAt(zap.DebugLevel), // 日志级别
+		Development: false,                                // 是否是开发模式
+		Encoding:    "console",                            // 输出格式：json 或 console
 		EncoderConfig: zapcore.EncoderConfig{
 			// 自定义你的 EncoderConfig，或者使用 zap.NewProductionEncoderConfig()
 			TimeKey:        "ts",
