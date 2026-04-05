@@ -26,13 +26,19 @@ func (gs *GatewayServer) OnOpen(c gnet.Conn) (out []byte, action gnet.Action) {
 	// 1. 获取真实的客户端 IP 和 端口
 	remoteAddr := c.RemoteAddr().String()
 	localAddr := c.LocalAddr().String()
+
 	meta := protocol.Meta{
 		SourceIp:  remoteAddr,
 		LocalAddr: localAddr,
 	}
 	meta.MsgID, _ = gonanoid.New(16)
+	if gs.protocolType == "mqtt" {
+		meta.IsConnected = false
+	}
 	c.SetContext(meta)
+
 	logger.Logger.Info("New connection", zap.String("remoteAddr", remoteAddr), zap.String("type", gs.protocolType))
+
 	// 可以在这里做简单的握手鉴权，MVP 暂略
 	return nil, gnet.None
 }
@@ -47,9 +53,10 @@ func (gs *GatewayServer) OnTraffic(c gnet.Conn) (action gnet.Action) {
 	// 准备元数据 (辅助信息)
 	meta, ok := c.Context().(protocol.Meta)
 	if !ok {
+		logger.Logger.Error("get meta failed", zap.String("type", gs.protocolType))
 		return gnet.Close
 	}
-
+	logger.Logger.Debug("get meta", zap.String("meta", meta.String()))
 	// Peek(-1) 表示读取所有可用数据，但不消费（不移除）
 	buf, _ := c.Peek(-1)
 
@@ -60,6 +67,8 @@ func (gs *GatewayServer) OnTraffic(c gnet.Conn) (action gnet.Action) {
 	// 消费数据
 	// 这一步非常重要！必须告诉 gnet 你已经处理完了，否则缓冲区会爆满
 	_, _ = c.Discard(len(buf))
+
+	logger.Logger.Debug("收到数据", zap.String("remoteAddr", c.RemoteAddr().String()), zap.String("type", gs.protocolType), zap.ByteString("data", data))
 
 	// 解析协议
 	// 获取对应的解析器
@@ -74,6 +83,9 @@ func (gs *GatewayServer) OnTraffic(c gnet.Conn) (action gnet.Action) {
 	if err != nil {
 		logger.Error("协议解码失败", "error", err)
 		return gnet.Close
+	}
+	if payload == nil {
+		return gnet.None
 	}
 
 	// 此时 payload 已经是标准的 StandardPayload 了
