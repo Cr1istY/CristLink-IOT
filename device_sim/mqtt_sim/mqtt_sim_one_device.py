@@ -10,7 +10,7 @@ import paho.mqtt.client as mqtt
 
 # 配置区域
 BROKER_HOST = "localhost"
-BROKER_PORT = 1883
+BROKER_PORT = 9001
 
 DEVICE_ID = "device_1"
 PRODUCT_KEY = "pk_test_123"
