@@ -1,10 +1,17 @@
 package protocol
 
 import (
+	"CristLink-IoT/internal/logger"
+	"bytes"
 	"encoding/json"
 	"errors"
+	"io"
 	"strings"
+	"sync"
 	"time"
+
+	"github.com/eclipse/paho.mqtt.golang/packets"
+	"go.uber.org/zap"
 )
 
 func init() {
@@ -12,6 +19,8 @@ func init() {
 }
 
 type MQTTCodec struct {
+	buf  *bytes.Buffer
+	once sync.Once
 }
 
 // Decode 解析 MQTT 消息
@@ -19,50 +28,61 @@ type MQTTCodec struct {
 // msg 参数通常就是 MQTT 的 Payload (即数据体部分)
 // meta 参数中通常包含 Topic 信息
 func (c *MQTTCodec) Decode(src []byte, meta Meta) (*StandardPayload, error) {
-	// 1. 从元数据中提取 Topic
-	topic := meta.Topic
-	// 2. 解析 Topic，
-	// Topic 通常包含路由信息（如 /sys/{pk}/{dk}/up）
-	if topic == "" {
-		return nil, errors.New(ErrMissingTopicInMetadata)
+	if c.buf == nil {
+		c.once.Do(func() {
+			c.buf = new(bytes.Buffer)
+		})
 	}
 
-	pk, dk, err := parseTopic(topic)
-	if err != nil {
-		return nil, err
-	}
+	c.buf.Write(src) // 写入缓存区
+	for c.buf.Len() > 0 {
+		// 尝试解析第一个包
+		pkt, err := packets.ReadPacket(c.buf)
+		if err != nil {
+			if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
+				break
+			}
+			return nil, err
+		}
+		if pub, ok := pkt.(*packets.PublishPacket); ok {
+			topic := pub.TopicName
+			if topic == "" {
+				return nil, errors.New(ErrMissingTopicInMetadata)
+			}
 
-	// 3. 构造Payload
-	payload := NewStandardPayload(pk, dk)
+			pk, dk, err := parseTopic(topic)
+			if err != nil {
+				return nil, err
+			}
 
-	// 4. 解析尝试
-	var inputMsg struct {
-		Method    string                 `json:"method"`
-		Timestamp int64                  `json:"ts"`
-		Data      map[string]interface{} `json:"data"`
-	}
-	if err := json.Unmarshal(src, &inputMsg); err != nil {
-		// 如果解析失败，可能是纯文本或二进制，我们可以把它作为整体放入 data 字段，或者报错
-		// 这里演示：如果解析失败，将整个 payload 当作 string 放入 data["raw"]
-		payload.SetData("raw_payload", string(src))
-	} else {
-		// 如果解析成功，则填充 payload
-		if inputMsg.Method != "" {
-			payload.Method = inputMsg.Method
-		} else {
+			payload := NewStandardPayload(pk, dk)
+			var inputMsg struct {
+				Method    string                 `json:"method"`
+				Timestamp int64                  `json:"ts"`
+				Data      map[string]interface{} `json:"data"`
+			}
+
+			if err := json.Unmarshal(pub.Payload, &inputMsg); err != nil {
+				payload.SetData("raw_payload", string(pub.Payload))
+			} else {
+				if inputMsg.Method != "" {
+					payload.Method = inputMsg.Method
+				}
+				if inputMsg.Timestamp > 0 {
+					payload.Timestamp = inputMsg.Timestamp
+				}
+				for k, v := range inputMsg.Data {
+					payload.SetData(k, v)
+				}
+			}
 			payload.Method = MethodReport
-		}
-		if inputMsg.Timestamp > 0 {
-			payload.Timestamp = inputMsg.Timestamp
-		}
-		for k, v := range inputMsg.Data {
-			payload.SetData(k, v)
+			payload.SrcProtocol = "mqtt"
+			logger.Logger.Debug("get mqtt", zap.String("topic", topic), zap.Any("payload", pub))
+			return payload, nil
 		}
 	}
-	// 5. 填充 MQTT 特有的元数据
-	payload.SrcProtocol = "mqtt"
-	// 如果 Topic 里还有额外层级，比如 /sys/pk/dk/attribute/up，可以把 "attribute" 也记录下来
-	return payload, nil
+
+	return nil, nil
 }
 
 // Encode 用于云端下发指令给设备
