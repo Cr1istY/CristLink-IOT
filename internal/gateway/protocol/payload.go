@@ -1,6 +1,9 @@
 package protocol
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 // StandardPayload 是所有协议解析后的统一格式
 // 符合 crist-link 项目“云边协同”与“统一治理”架构
@@ -43,6 +46,21 @@ type Meta struct {
 	Seq        int64  `json:"seq"`        // 序列号，用于消息排序
 
 	Topic string `json:"topic"` // MQTT Topic
+
+	// MQTT 特有字段 (初始为空，CONNECT 后填充)
+	ClientID    string
+	Username    string
+	WillTopic   string // 遗嘱主题
+	IsConnected bool   // 标记是否已完成 CONNECT 握手
+}
+
+func (m *Meta) String() string {
+	jsonBytes, err := json.Marshal(m)
+	if err != nil {
+		return "json.Marshal failed"
+	}
+	jsonStr := string(jsonBytes)
+	return jsonStr
 }
 
 // --- 辅助常量与方法 ---
