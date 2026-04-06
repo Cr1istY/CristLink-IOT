@@ -1,11 +1,12 @@
 package sink
 
 import (
+	"CristLink-IoT/internal/logger"
 	"context"
-	"log"
 	"time"
 
 	"github.com/segmentio/kafka-go"
+	"go.uber.org/zap"
 )
 
 // Producer 封装 Kafka 生产者
@@ -38,11 +39,10 @@ func (p *Producer) Send(ctx context.Context, key, value []byte) error {
 	defer cancel()
 
 	if err := p.writer.WriteMessages(ctxWithTimeout, msg); err != nil {
-		// 生产环境建议使用 zap 等高性能日志库，并增加错误分类处理
-		// 例如：如果是 "queue full"，可以稍后重试；如果是 "topic not exist"，则报警
-		log.Printf("Kafka write error: %v", err)
+		logger.Logger.Error("send to Kafka failed: ", zap.Any("error", err))
 		return err
 	}
+	logger.Logger.Debug("send to Kafka success")
 	return nil
 }
 
