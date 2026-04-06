@@ -7,6 +7,9 @@ import (
 	"CristLink-IoT/internal/logger"
 	"fmt"
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/panjf2000/gnet/v2"
 )
@@ -38,6 +41,15 @@ func main() {
 		}
 	}(producer)
 
+	tcpForwarderConfig := gateway.GetTCPForwarderConfig()
+	tcpForwarder := sink.NewTCPForwarder(tcpForwarderConfig)
+	if tcpForwarder == nil {
+		logger.Error("TCP Forwarder init failed")
+		return
+	}
+
+	tcpForwarder.Start()
+
 	configs := []gateway.ServerConfig{
 		{
 			Port:         9000,
@@ -61,19 +73,24 @@ func main() {
 		}
 
 		// 启动服务
-		addr := fmt.Sprintf("tcp://:%d", cfg.Port)
+		addr := fmt.Sprintf("tcp://0.0.0.0:%d", cfg.Port)
 		logger.Info("Starting gnet server", "server_name", cfg.Name, "server_addr", addr)
 		// 注意：gnet.Run 是阻塞的，如果要在主线程同时运行多个，需要开 Goroutine
 		go func(s *network.GatewayServer, a string) {
 			// gnet.Run 接收实现了 gnet.Events 接口的对象
 			// 因为 *GatewayServer 实现了 OnTraffic/OnOpen 等方法，所以它天然满足接口要求
-			if err := gnet.Run(s, a); err != nil {
+			if err := gnet.Run(s, a, gnet.WithMulticore(true)); err != nil {
 				logger.Error("Server error", "error", err)
 			}
 		}(server, addr)
 	}
 
 	// 阻塞主线程
-	select {}
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	receivedSignal := <-sigChan
+	fmt.Printf("\n\nReceived signal: %v. Shutting down gracefully...\n", receivedSignal)
+	tcpForwarder.Stop()
 
+	fmt.Println("Program exited.")
 }

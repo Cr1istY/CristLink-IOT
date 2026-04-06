@@ -16,6 +16,7 @@ import (
 
 func init() {
 	Register("mqtt", &MQTTCodec{})
+	// 启动 MQTT Broker
 }
 
 type MQTTCodec struct {
