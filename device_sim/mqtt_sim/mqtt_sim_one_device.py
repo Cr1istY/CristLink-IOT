@@ -3,19 +3,14 @@ import time
 import json
 import paho.mqtt.client as mqtt
 
-# brew install mosquitto
-# 使用 mosquitto 作为本地 MQTT Broker
-# 开启 匿名访问模式
-# Topic 通常包含路由信息（如 /sys/{pk}/{dk}/up）
-
 # 配置区域
 BROKER_HOST = "localhost"
-BROKER_PORT = 9001
+BROKER_PORT = 1883
 
 DEVICE_ID = "device_1"
 PRODUCT_KEY = "pk_test_123"
 
-TOPIC = f"/sys/{PRODUCT_KEY}/{DEVICE_ID}/up"
+TOPIC = f"/sensor/{PRODUCT_KEY}/{DEVICE_ID}/up"
 
 def on_connect(client, userdata, flags, rc, properties):
     if rc == 0:
