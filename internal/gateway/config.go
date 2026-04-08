@@ -54,7 +54,7 @@ func GetTCPForwarderConfig() *TCPForwarderConfig {
 		AutoReconnect: true,
 		CleanSession:  true,
 		BufferSize:    1024,
-		TCPTarget:     "localhost:9001",
+		TCPTarget:     "localhost:9000",
 		Topic:         "/sensor/#",
 	}
 }

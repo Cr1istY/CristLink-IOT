@@ -11,6 +11,14 @@ import (
 	"go.uber.org/zap"
 )
 
+// 在设计之初，本来应该没有这个类的，但是，为了偷懒，我设计了这个类
+// 因此，我可以免去自己实现MQTT协议的过程
+// 但是，如果使用 其他的 MQTT Broker 来做桥接
+// gnet 的性能优势就不能很好的体现出来
+// 因此，这知识一个折中方案，用来在尚未自己实现 MQTT 协议解析的情况下，作为一个临时的解析MQTT到解决方案
+// 然而，最终还是得在 mqtt_codec.go 中进行 MQTT 的实现
+
+// TCPForwarder 是一个 TCP 代理，用于将 MQTT 消息变为JSON格式，然后转发给 gnet 处理
 type TCPForwarder struct {
 	config    *gateway.TCPForwarderConfig
 	client    MQTT.Client
@@ -125,6 +133,8 @@ func (f *TCPForwarder) Stop() {
 
 // PushMessage 接收 MQTT 消息并推送到 Channel
 func (f *TCPForwarder) PushMessage(data []byte) {
+	// TODO: 对data进行预处理
+
 	select {
 	case f.msgChan <- data:
 	default:
