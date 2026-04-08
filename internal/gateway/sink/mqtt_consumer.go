@@ -53,11 +53,14 @@ func NewTCPForwarder(cfg *gateway.TCPForwarderConfig) *TCPForwarder {
 			copy(data, message.Payload())
 			forwarder.PushMessage(data)
 		})
-
-		if token.Wait() && token.Error() != nil {
-			logger.Logger.Error("subscribe failed: ", zap.Error(token.Error()))
-		}
-		logger.Logger.Info("subscribe success", zap.String("topic", config.Topic))
+		// 异步处理订阅消息，不要阻塞 OnConnect
+		go func() {
+			token.Wait() // 在独立的 Goroutine 中阻塞
+			if token.Wait() && token.Error() != nil {
+				logger.Logger.Error("subscribe failed: ", zap.Error(token.Error()))
+			}
+			logger.Logger.Info("subscribe success", zap.String("topic", config.Topic))
+		}()
 	}
 
 	opts.OnConnectionLost = func(client MQTT.Client, err error) {
@@ -81,37 +84,85 @@ func (f *TCPForwarder) Start() {
 
 // tcpWriteLoop TCP 写入循环
 func (f *TCPForwarder) tcpWriteLoop() {
-	var err error
+	var tempDelay time.Duration // 用于重连时的指数退避
 
 	for f.isRunning {
-		f.conn, err = net.Dial("tcp", f.config.TCPTarget)
+		conn, err := net.Dial("tcp", f.config.TCPTarget)
 		if err != nil {
 			logger.Logger.Error("connect to tcp target failed: ", zap.Error(err))
-			time.Sleep(2 * time.Second)
+			time.Sleep(5 * time.Millisecond)
 			continue
 		}
+
+		f.mu.Lock()
+		f.conn = conn
+		f.mu.Unlock()
+
+		tempDelay = 0
 		logger.Logger.Info("connect to tcp target success")
 
 		for f.isRunning {
+			if f.conn == nil {
+				break
+			}
 			select {
 			case msgBytes, ok := <-f.msgChan:
 				if !ok {
 					return
 				}
+
+				// 再次检查连接状态（双重检查）
 				f.mu.Lock()
+				currentConn := f.conn
+
+				if currentConn == nil {
+					// 连接被清空了，跳出内层循环去重连
+					f.mu.Unlock()
+					break
+				}
 				_, err = f.conn.Write(msgBytes)
 				f.mu.Unlock()
 
 				if err != nil {
 					logger.Logger.Error("write to tcp target failed: ", zap.Error(err))
-					err := f.conn.Close()
+					err := currentConn.Close()
 					if err != nil {
 						logger.Logger.Error("close tcp connection failed: ", zap.Error(err))
 					}
+
+					f.mu.Lock()
+					// 重连后，清理原先的f.conn
+					if f.conn == currentConn {
+						f.conn = nil
+					}
+					f.mu.Unlock()
+
 					break
 				}
 			}
+
 		}
+
+		if conn != nil {
+			_ = conn.Close()
+		}
+		// 如果是用户主动停止，则取消无限重试
+		if !f.isRunning {
+			return
+		}
+
+		// 自动重连，指数退避
+		if tempDelay == 0 {
+			tempDelay = time.Millisecond * 10
+		} else {
+			tempDelay *= 2
+		}
+		if maxTime := time.Second; tempDelay > maxTime {
+			tempDelay = maxTime
+		}
+
+		logger.Logger.Warn("reconnecting to tcp target...", zap.Duration("sleep", tempDelay), zap.String("target", f.config.TCPTarget))
+		time.Sleep(tempDelay)
 
 	}
 

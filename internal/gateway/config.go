@@ -55,6 +55,6 @@ func GetTCPForwarderConfig() *TCPForwarderConfig {
 		CleanSession:  true,
 		BufferSize:    1024,
 		TCPTarget:     "localhost:9000",
-		Topic:         "/sensor/#",
+		Topic:         "sensor/#",
 	}
 }
