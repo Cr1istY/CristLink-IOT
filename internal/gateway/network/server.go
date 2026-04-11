@@ -94,11 +94,11 @@ func (gs *GatewayServer) OnTraffic(c gnet.Conn) (action gnet.Action) {
 		key := []byte(payload.DeviceKey)
 		valueBytes, err := json.Marshal(payload)
 		if err != nil {
-			logger.Error("Kafka 消息序列化失败", "error", err)
+			logger.Logger.Error("Kafka marshal to json failed", zap.Error(err))
 			return
 		}
 		if err := gs.kafkaProducer.Send(gs.ctx, key, valueBytes); err != nil {
-			logger.Error("Failed to send to kafka", "error", err)
+			logger.Logger.Error("Failed to send to kafka", zap.Error(err))
 		}
 	}()
 

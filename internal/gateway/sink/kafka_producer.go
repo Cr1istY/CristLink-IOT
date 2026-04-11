@@ -42,7 +42,7 @@ func (p *Producer) Send(ctx context.Context, key, value []byte) error {
 		logger.Logger.Error("send to Kafka failed: ", zap.Any("error", err))
 		return err
 	}
-	logger.Logger.Debug("send to Kafka success")
+	logger.Logger.Debug("send to Kafka success", zap.String(string(key), string(value)))
 	return nil
 }
 
