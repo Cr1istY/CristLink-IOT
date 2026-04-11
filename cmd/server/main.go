@@ -61,6 +61,11 @@ func main() {
 			ProtocolType: "mqtt", // MQTT 协议服务
 			Name:         "Mqtt_Gateway",
 		},
+		{
+			Port:         9020,
+			ProtocolType: "mqtt_consumer", // MQTT 协议服务
+			Name:         "Mqtt_consumer_Gateway",
+		},
 	}
 
 	// 工厂循环启动 (核心逻辑)
