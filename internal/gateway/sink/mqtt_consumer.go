@@ -3,6 +3,7 @@ package sink
 import (
 	"CristLink-IoT/internal/gateway"
 	"CristLink-IoT/internal/logger"
+	"encoding/json"
 	"net"
 	"sync"
 	"time"
@@ -48,9 +49,18 @@ func NewTCPForwarder(cfg *gateway.TCPForwarderConfig) *TCPForwarder {
 	opts.OnConnect = func(client MQTT.Client) {
 		logger.Info("MQTT connected")
 		token := client.Subscribe(cfg.Topic, 0, func(client MQTT.Client, message MQTT.Message) {
-			logger.Logger.Debug("MQTT broker receive message: ", zap.Any("topic", message.Topic()), zap.Any("payload", message.Payload()))
-			data := make([]byte, len(message.Payload()))
-			copy(data, message.Payload())
+			logger.Logger.Debug("MQTT broker receive message: ", zap.String("topic", message.Topic()), zap.String("payload", string(message.Payload())))
+			var messageData struct {
+				Topic string `json:"topic"`
+				Data  []byte `json:"data"`
+			}
+			messageData.Topic = message.Topic()
+			messageData.Data = message.Payload()
+			data, err := json.Marshal(messageData)
+			if err != nil {
+				logger.Logger.Error("json marshal error: ", zap.Error(err))
+				return
+			}
 			forwarder.PushMessage(data)
 		})
 		// 异步处理订阅消息，不要阻塞 OnConnect
